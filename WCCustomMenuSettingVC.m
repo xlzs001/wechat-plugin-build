@@ -12,9 +12,11 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = @"菜单自定义设置";
-    self.view.backgroundColor = [UIColor groupTableViewBackgroundColor];
     
-    // 初始化默认数据（实际开发中应先从 NSUserDefaults 读取）
+    // --- 修复点：改用 iOS 13+ 支持的新背景色属性 ---
+    self.view.backgroundColor = [UIColor systemGroupedBackgroundColor]; 
+    
+    // 初始化默认数据
     self.allMenuNames = [@[@"复制", @"转发", @"收藏", @"删除", @"引用", @"提醒", @"搜一搜", @"相关表情"] mutableCopy];
     self.hiddenItems = [[NSMutableSet alloc] init];
     self.sortOrder = [self.allMenuNames mutableCopy];
@@ -23,14 +25,14 @@
     self.tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleGrouped];
     self.tableView.delegate = self;
     self.tableView.dataSource = self;
-    [self.tableView setEditing:YES animated:NO]; // 默认开启编辑模式以支持拖拽
+    [self.tableView setEditing:YES animated:NO]; 
     [self.view addSubview:self.tableView];
     
     // 添加保存按钮
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"保存" style:UIBarButtonItemStyleDone target:self action:@selector(saveSettings)];
 }
 
-// 保存配置到本地，供 Tweak.x 读取
+// 保存配置到本地
 - (void)saveSettings {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     [defaults setObject:[self.hiddenItems allObjects] forKey:@"WCCustomMenu_Blacklist"];
@@ -45,7 +47,7 @@
 #pragma mark - TableView DataSource & Delegate
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-    return 2; // 0: 开关控制, 1: 拖拽排序
+    return 2; 
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
@@ -67,15 +69,13 @@
     cell.textLabel.text = itemName;
     
     if (indexPath.section == 0) {
-        // 第一组：放置开关
         UISwitch *switchView = [[UISwitch alloc] init];
         switchView.on = ![self.hiddenItems containsObject:itemName];
         switchView.tag = indexPath.row;
         [switchView addTarget:self action:@selector(switchChanged:) forControlEvents:UIControlEventValueChanged];
         cell.accessoryView = switchView;
-        cell.showsReorderControl = NO; // 不显示拖拽
+        cell.showsReorderControl = NO; 
     } else {
-        // 第二组：拖拽排序
         cell.accessoryView = nil;
         cell.showsReorderControl = YES;
     }
