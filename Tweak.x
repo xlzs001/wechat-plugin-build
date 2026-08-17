@@ -120,3 +120,59 @@ static NSArray *processMenuItems(NSArray *originItems) {
 }
 
 %end
+
+// 1. 声明微信原生的表格管理类（大部分第三方插件复用这个机制）
+@interface WCTableViewNormalCellManager : NSObject
++ (id)normalCellForSel:(SEL)arg1 target:(id)arg2 title:(id)arg3;
+@end
+
+@interface WCTableViewSectionManager : NSObject
++ (id)sectionInfoDefaut;
+- (void)addCell:(id)arg1;
+@end
+
+@interface WCTableViewManager : NSObject
+- (void)insertSection:(id)arg1 atIndex:(unsigned int)arg2;
+- (id)getTableView;
+@end
+
+// 2. 声明我们的自定义设置页面
+@interface WCCustomMenuSettingVC : UIViewController
+@end
+
+// 3. Hook 插件收纳的控制器 (重点：你需要替换下面这个类名)
+// 假设“插件收纳”的类名叫做 PluginCenterViewController
+%hook PluginCenterViewController
+
+- (void)reloadTableData {
+    %orig; // 先让它加载原本的其他插件列表
+
+    // 获取页面的 table manager (大部分类似插件把这个属性命名为 m_tableViewManager)
+    WCTableViewManager *manager = [self valueForKey:@"m_tableViewManager"];
+    if (manager) {
+        // 创建一个新的区块 (Section)
+        WCTableViewSectionManager *section = [%c(WCTableViewSectionManager) sectionInfoDefaut];
+        
+        // 创建一行 (Cell)，点击后执行下面的 showMyPlugin 方法
+        WCTableViewNormalCellManager *cell = [%c(WCTableViewNormalCellManager) normalCellForSel:@selector(showMyPlugin) target:self title:@"菜单自定义设置"];
+        [section addCell:cell];
+        
+        // 把我们的区块插入到列表的最上面 (Index 0)
+        [manager insertSection:section atIndex:0];
+        
+        // 刷新列表
+        [[manager getTableView] reloadData];
+    }
+}
+
+// 4. 给这个类动态添加一个点击事件方法
+%new
+- (void)showMyPlugin {
+    WCCustomMenuSettingVC *vc = [[WCCustomMenuSettingVC alloc] init];
+    // 隐藏底部导航栏（如果存在）
+    vc.hidesBottomBarWhenPushed = YES;
+    // 推出我们的自定义 UI
+    [self.navigationController pushViewController:vc animated:YES];
+}
+
+%end
