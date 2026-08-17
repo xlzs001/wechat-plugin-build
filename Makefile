@@ -5,7 +5,7 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = WeChatMenuCustomizer
 
-WeChatMenuCustomizer_FILES = Tweak.x
+WeChatMenuCustomizer_FILES = Tweak.x WCCustomMenuSettingVC.m
 WeChatMenuCustomizer_CFLAGS = -fobjc-arc
 
 include $(THEOS_MAKE_PATH)/tweak.mk
