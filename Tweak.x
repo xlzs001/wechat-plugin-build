@@ -1,0 +1,122 @@
+#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
+
+// --- 头文件接口声明 ---
+@interface MMMenuItem : NSObject
+@property (nonatomic, copy) NSString *title;
+@property (nonatomic, strong) UIImage *iconImage;
+@property (nonatomic, assign) SEL action;
+@property (nonatomic, weak) id target;
+@end
+
+@interface MMMenuController : NSObject
+@property (nonatomic, strong) NSMutableArray *menuItems;
+- (void)setMenuItems:(NSArray *)arg1;
+@end
+
+// --- 统一过滤与排序处理函数 ---
+static NSArray *processMenuItems(NSArray *originItems) {
+    if (!originItems || originItems.count == 0) {
+        return originItems;
+    }
+
+    // 1. 【删除项配置】：出现在此数组中的按钮将被完全移除
+    NSArray *blacklist = @[
+        @"搜一搜",
+        @"相关表情",
+        @"合拍",
+        @"转自拍"
+    ];
+
+    // 2. 【编辑项配置】：修改按钮的文字显示
+    NSDictionary *renameMap = @{
+        @"多选": @"批量",
+        @"从当前听": @"听语音",
+        @"收藏": @"存入收藏"
+    };
+
+    // 3. 【排序优先级配置】：排在此数组前面的项，在菜单中会优先靠前展示
+    NSArray *priorityOrder = @[
+        @"复制",
+        @"转发",
+        @"删除",
+        @"引用",
+        @"提醒"
+    ];
+
+    NSMutableArray *remainingItems = [NSMutableArray array];
+    NSMutableDictionary *priorityItemMap = [NSMutableDictionary dictionary];
+
+    // 遍历原始列表
+    for (MMMenuItem *item in originItems) {
+        if (![item respondsToSelector:@selector(title)] || !item.title) {
+            [remainingItems addObject:item];
+            continue;
+        }
+
+        NSString *title = item.title;
+
+        // 步骤 1：黑名单过滤（删除）
+        BOOL isBlacklisted = NO;
+        for (NSString *blackItem in blacklist) {
+            if ([title containsString:blackItem]) {
+                isBlacklisted = YES;
+                break;
+            }
+        }
+        if (isBlacklisted) {
+            continue;
+        }
+
+        // 步骤 2：重命名编辑
+        if (renameMap[title]) {
+            item.title = renameMap[title];
+            title = item.title;
+        }
+
+        // 步骤 3：分类归档以供排序
+        BOOL matchedPriority = NO;
+        for (NSString *pName in priorityOrder) {
+            if ([title isEqualToString:pName] || [title isEqualToString:renameMap[pName]]) {
+                [priorityItemMap setObject:item forKey:pName];
+                matchedPriority = YES;
+                break;
+            }
+        }
+
+        if (!matchedPriority) {
+            [remainingItems addObject:item];
+        }
+    }
+
+    // 步骤 4：组装最终排序结果
+    NSMutableArray *finalItems = [NSMutableArray array];
+
+    // 先插入高优先级项
+    for (NSString *pName in priorityOrder) {
+        MMMenuItem *item = [priorityItemMap objectForKey:pName];
+        if (item) {
+            [finalItems addObject:item];
+        }
+    }
+
+    // 再追加其余正常项
+    [finalItems addObjectsFromArray:remainingItems];
+
+    return [finalItems copy];
+}
+
+// --- Hook MMMenuController ---
+%hook MMMenuController
+
+- (void)setMenuItems:(NSArray *)arg1 {
+    NSArray *modified = processMenuItems(arg1);
+    %orig(modified);
+}
+
+- (NSMutableArray *)menuItems {
+    NSMutableArray *origList = %orig;
+    return (NSMutableArray *)processMenuItems(origList);
+}
+
+%end
