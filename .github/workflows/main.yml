@@ -13,8 +13,16 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Theos
-        uses: theos/theos-action@v1
+      - name: Setup Theos and iOS SDK
+        run: |
+          # 1. 下载 Theos 核心环境
+          git clone --recursive https://github.com/theos/theos.git ${{ github.workspace }}/theos
+          # 2. 下载 iOS SDKs
+          curl -LO https://github.com/theos/sdks/archive/master.zip
+          unzip master.zip
+          mv sdks-master/*.sdk ${{ github.workspace }}/theos/sdks
+          # 3. 配置环境变量
+          echo "THEOS=${{ github.workspace }}/theos" >> $GITHUB_ENV
 
       - name: Build Package
         run: |
