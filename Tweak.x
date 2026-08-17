@@ -123,51 +123,24 @@ static NSArray *processMenuItems(NSArray *originItems) {
 
 
 // ==========================================
-// 4. 界面入口 Hook 代码 (临时注入微信原生“设置”页面)
+// 4. 适配“插件收纳”专用 API (微信->我->插件)
 // ==========================================
-
-@interface WCCustomMenuSettingVC : UIViewController
+@interface WCPluginsMgr : NSObject
++ (instancetype)sharedInstance;
+- (void)registerControllerWithTitle:(NSString *)title version:(NSString *)version controller:(NSString *)controller;
 @end
 
-@interface WCTableViewNormalCellManager : NSObject
-+ (id)normalCellForSel:(SEL)arg1 target:(id)arg2 title:(id)arg3;
-@end
-
-@interface WCTableViewSectionManager : NSObject
-+ (id)sectionInfoDefaut;
-- (void)addCell:(id)arg1;
-@end
-
-@interface WCTableViewManager : NSObject
-- (void)insertSection:(id)arg1 atIndex:(unsigned int)arg2;
-- (id)getTableView;
-@end
-
-@interface NewSettingViewController : UIViewController
-@end
-
-%hook NewSettingViewController
-
-- (void)reloadTableData {
-    %orig; 
-
-    WCTableViewManager *manager = [self valueForKey:@"m_tableViewManager"];
-    if (manager) {
-        WCTableViewSectionManager *section = [%c(WCTableViewSectionManager) sectionInfoDefaut];
+%ctor {
+    // 为了防止你的多个 dylib 加载顺序随机导致找不到 WCPluginsMgr，
+    // 我们把注册时机推迟到 App 启动完成的瞬间，这样是最稳妥的。
+    [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidFinishLaunchingNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification * _Nonnull note) {
         
-        WCTableViewNormalCellManager *cell = [%c(WCTableViewNormalCellManager) normalCellForSel:@selector(showMyCustomMenuPlugin) target:self title:@"🛠️ 菜单自定义设置 (测试入口)"];
-        [section addCell:cell];
+        if (NSClassFromString(@"WCPluginsMgr")) {
+            // 调用对方的 API，把我们的 UI 界面 (WCCustomMenuSettingVC) 交给它托管
+            [[objc_getClass("WCPluginsMgr") sharedInstance] registerControllerWithTitle:@"菜单自定义" 
+                                                                                version:@"1.0.0" 
+                                                                             controller:@"WCCustomMenuSettingVC"];
+        }
         
-        [manager insertSection:section atIndex:0];
-        [[manager getTableView] reloadData];
-    }
+    }];
 }
-
-%new
-- (void)showMyCustomMenuPlugin {
-    WCCustomMenuSettingVC *vc = [[WCCustomMenuSettingVC alloc] init];
-    vc.hidesBottomBarWhenPushed = YES;
-    [self.navigationController pushViewController:vc animated:YES];
-}
-
-%end
