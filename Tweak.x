@@ -176,3 +176,60 @@ static NSArray *processMenuItems(NSArray *originItems) {
 }
 
 %end
+// ==========================================
+// 以下为界面入口 Hook 代码
+// 临时注入到微信原生的“设置”页面中进行测试
+// ==========================================
+
+// 1. 声明 UI 控制器
+@interface WCCustomMenuSettingVC : UIViewController
+@end
+
+// 2. 声明微信原生设置页面的 Cell 和 Section 管理器
+@interface WCTableViewNormalCellManager : NSObject
++ (id)normalCellForSel:(SEL)arg1 target:(id)arg2 title:(id)arg3;
+@end
+
+@interface WCTableViewSectionManager : NSObject
++ (id)sectionInfoDefaut;
+- (void)addCell:(id)arg1;
+@end
+
+@interface WCTableViewManager : NSObject
+- (void)insertSection:(id)arg1 atIndex:(unsigned int)arg2;
+- (id)getTableView;
+@end
+
+// 3. Hook 微信原生的设置页面控制器
+%hook NewSettingViewController
+
+- (void)reloadTableData {
+    %orig; // 先让微信加载原本的设置列表（账号与安全、新消息通知等）
+
+    // 获取页面的 table manager
+    WCTableViewManager *manager = [self valueForKey:@"m_tableViewManager"];
+    if (manager) {
+        // 创建一个新的区块
+        WCTableViewSectionManager *section = [%c(WCTableViewSectionManager) sectionInfoDefaut];
+        
+        // 创建一行菜单
+        WCTableViewNormalCellManager *cell = [%c(WCTableViewNormalCellManager) normalCellForSel:@selector(showMyCustomMenuPlugin) target:self title:@"🛠️ 菜单自定义设置 (测试入口)"];
+        [section addCell:cell];
+        
+        // 把它插入到设置列表的最上面 (Index 0)
+        [manager insertSection:section atIndex:0];
+        
+        // 刷新列表显示
+        [[manager getTableView] reloadData];
+    }
+}
+
+// 给原生设置页面动态添加一个点击跳转方法
+%new
+- (void)showMyCustomMenuPlugin {
+    WCCustomMenuSettingVC *vc = [[WCCustomMenuSettingVC alloc] init];
+    vc.hidesBottomBarWhenPushed = YES;
+    [self.navigationController pushViewController:vc animated:YES];
+}
+
+%end
