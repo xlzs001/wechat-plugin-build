@@ -10,7 +10,7 @@
 @end
 
 @interface MMMenuController : NSObject
-@property (nonatomic, strong) NSMutableArray *menuItems;
+@property (nonatomic, strong) NSArray *menuItems; // <--- 之前这里写成了 NSMutableArray，已修正
 - (void)setMenuItems:(NSArray *)arg1;
 @end
 
@@ -114,9 +114,9 @@ static NSArray *processMenuItems(NSArray *originItems) {
     %orig(modified);
 }
 
-- (NSMutableArray *)menuItems {
-    NSMutableArray *origList = %orig;
-    return (NSMutableArray *)processMenuItems(origList);
+- (NSArray *)menuItems {
+    NSArray *origList = %orig;
+    return processMenuItems(origList);
 }
 
 %end
