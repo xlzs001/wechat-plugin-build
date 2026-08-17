@@ -15,7 +15,6 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          # 安装签名工具 ldid
           brew install ldid
 
       - name: Setup Theos and iOS SDK
@@ -28,6 +27,9 @@ jobs:
 
       - name: Build Package
         run: |
+          # 自动修复 Windows 产生的回车换行符格式问题
+          perl -pi -e 's/\r\n/\n/g' control Makefile WeChatMenuCustomizer.plist || true
+          
           make package FINALPACKAGE=1
           mkdir -p output
           find .theos/obj -name "*.dylib" -exec cp {} output/ \; 2>/dev/null || true
